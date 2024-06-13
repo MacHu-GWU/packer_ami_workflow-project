@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 """
+Packer CLI related helpers.
 """
 
 import typing as T
@@ -98,6 +99,21 @@ class PackerInstaller:
     :param version: The version of Packer to install. For example, "1.11.0".
     :param platform: The platform to install Packer on. For example, "PlatformEnum.linux_amd64".
     :param dir_workspace: The working directory for this installation task.
+
+    Usage example:
+
+    .. code-block:: python
+
+        from pathlib import Path
+        import packer_ami_workflow.api as paw
+
+        packer_installer = paw.PackerInstaller(
+            version="1.11.0",
+            platform=paw.PlatformEnum.macOS_arm64,
+            # platform=paw.PlatformEnum.linux_amd64,
+            dir_workspace=Path(__file__).absolute().parent,
+        )
+        packer_installer.install()
     """
 
     version: str = dataclasses.field()
@@ -171,7 +187,13 @@ class PackerInstaller:
         else:
             raise NotImplementedError
 
+        print("Now you can run this command to verify installation ")
+        print("packer --version")
+
     def install(self):
+        """
+        Install packer pre-compiled binary.
+        """
         self.reset_temp_dir()
         self.download()
         self.unzip()

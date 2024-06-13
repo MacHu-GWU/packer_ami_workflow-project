@@ -1,42 +1,46 @@
 AMI Build Guide
 ==============================================================================
-本章详细介绍了作为一个开发者, 这个项目中与 packer build 有关的代码架构. 以及每个 Step 的构建逻辑.
+本章详细介绍了作为一个开发者, 应该如何使用这个库来管理复杂的 packer build AMI 项目.
 
 
-Install Packer
+The ``workflow`` Folder
 ------------------------------------------------------------------------------
-首先我们要安装 hashicorp packer.
+**Folder Structure**
 
-这个项目提供了一个 `install_packer.py <https://github.com/MacHu-GWU/acore_ami-project/blob/main/bin/install_packer.py>`_ 的自动化脚本用于安装 Packer. 请参考这个脚本的源代码:
-
-.. dropdown:: install_packer.py
-
-    .. literalinclude:: ../../../bin/install_pack
-       :language: python
-       :linenos:
-
-
-The ``packer_workspace`` Folder
-------------------------------------------------------------------------------
-在这个 Repo 的根目录下有一个 `packer_workspace <https://github.com/MacHu-GWU/acore_ami-project/tree/main/packer_workspaces>`_ 目录. 里面包含一个 ``workflow_param.json`` 和一堆文件夹. 里面的目录结构大致长下面这样.
+在这个 Repo 的根目录下有一个 `workflow <https://github.com/MacHu-GWU/packer_ami_workflow-project/tree/main/workflow>`_ 目录. 里面包含一个 ``workflow_param.json`` 和一堆文件夹. 里面的目录结构大致长下面这样.
 
 .. code-block::
 
-    /packer_workspaces/
-    /packer_workspaces/{step1_workspace}/
-    /packer_workspaces/{step2_workspace}/
-    /packer_workspaces/.../
-    /packer_workspaces/workflow_param.json
+    /workflow/
+    /workflow/{step1_workspace}/
+    /workflow/{step2_workspace}/
+    /workflow/.../
+    /workflow/find_root_base_image_id.py
+    /workflow/workflow_param.json
 
-如果你还记得 :ref:`workflow-and-step-strategy` 中提到的我们将一个 AMI 的多个步骤拆分的策略, 整个 ``packer_workspaces`` 就是一个 workflow. 而这里的每个子目录就是一个 Step.
+如果你还记得 :ref:`workflow-and-step-strategy` 中提到的我们将一个 AMI 的多个步骤拆分的策略, 整个 ``workflow`` 就是一个 workflow. 而这里的每个子目录就是一个 Step.
 
-而 `example <https://github.com/MacHu-GWU/acore_ami-project/tree/main/packer_workspaces/example>`_ 是一个特殊的 Step. 它并不属于我们这个 workflow, 但是它给出了每一个 step 的目录下的代码结构. 所有真正要用的 step 都是用这个 example 作为模板来创建的.
+**Step1**
 
-这些 Step 的 packer template 中都会有很多 parameter, 而这里很多 Step 的 parameter 都是一样的. 而 `/packer_workspaces/workflow_param.json <https://github.com/MacHu-GWU/acore_ami-project/blob/main/packer_workspaces/workflow_param.json>`_ 就保存了这些通用的 parameter 的值.
+而 `step1 <https://github.com/MacHu-GWU/packer_ami_workflow-project/tree/main/workflow/step1>`_ 是一个特殊的 Step. 它是这个 workflow 中的第一个 step, 同时它给出了一个典型的 step 的目录下的代码结构. 所有真正要用的 step 都是用这个 step1 作为模板来创建的.
+
+**Find root base image id script**
+
+通常一个 workflow 起始于一个 base image, 它被称为整个 workflow 中所有 step 的 root base image. `find_root_base_image_id.py <https://github.com/MacHu-GWU/packer_ami_workflow-project/blob/main/workflow/find_root_base_image_id.py>`_ 是一个脚本筛选 base image 的. 在这个例子中, 我们筛选出指定 ubuntu 发行版中的最新版本作为 root base image. 获得了 image id 和 image name 之后我们就可以将其填入 ``workflow_param.json`` 文件中 (详情请看下一节).
+
+.. dropdown:: find_root_base_image_id.py
+
+    .. literalinclude:: ../../../workflow/find_root_base_image_id.py
+       :language: javascript
+       :linenos:
+
+**Workflow Parameter JSON File**
+
+这些 Step 的 packer template 中都会有很多 parameter, 而这里很多 Step 的 parameter 都是一样的. 而 `/workflow/workflow_param.json <https://github.com/MacHu-GWU/packer_ami_workflow-project/blob/main/workflow/workflow_param.json>`_ 就保存了这些通用的 parameter 的值.
 
 .. dropdown:: workflow_param.json
 
-    .. literalinclude:: ../../../packer_workspaces/workflow_param.json
+    .. literalinclude:: ../../../workflow/workflow_param.json
        :language: javascript
        :linenos:
 
@@ -45,23 +49,29 @@ The ``packer_workspace`` Folder
 
 Per Step Folder
 ------------------------------------------------------------------------------
-下面我们进到一个 `具体的 Step 目录里 <https://github.com/MacHu-GWU/acore_ami-project/tree/main/packer_workspaces/example>`_ 看看每个 Step 的 packer template 应该怎么写. 下面列出了 Step 的 workspace 的目录结构.
+下面我们进到一个 `具体的 Step1 目录里 <https://github.com/MacHu-GWU/packer_ami_workflow-project/tree/main/workflow/step1>`_ 看看每个 Step 的 packer template 应该怎么写. 下面列出了 Step 的 workspace 的目录结构.
 
 .. code-block::
 
+    # 核心文件
     /workspace/
     /workspace/templates/
     /workspace/templates/.pkr.hcl
     /workspace/templates/.pkrvars.hcl
     /workspace/templates/.variables.pkr.hcl
     /workspace/.gitignore
-    /workspace/${workflow_name}.pkr.hcl
-    /workspace/${workflow_name}.pkrvars.hcl
-    /workspace/${workflow_name}.variables.pkr.hcl
-    /workspace/complicated_script.py
-    /workspace/complicated_script.sh
     /workspace/packer_build.py # <--- 用这个脚本运行 packer build
     /workspace/param.json
+
+    # 这个例子展示了在无需任何 python 库的情况下, 使用 python shell script 来实现 provision 逻辑
+    /workspace/zero_deps_script.py
+    # 这个例子展示了在需要少量 python 库的情况下, 使用 python shell script 来实现 provision 逻辑
+    /workspace/some_deps_script.py
+    # 这个例子展示了如何实现非常复杂的 provision 逻辑
+    # 其核心就是用 .sh 来给 Python 安装依赖
+    # 然后用 .py 来实现复杂的 provision 逻辑
+    /workspace/complicated_script.py
+    /workspace/complicated_script.sh
     /workspace/README.rst
 
 在详细展开之前, 我们先来了解一下 ``/workspace/templates/`` 目录:
@@ -79,13 +89,13 @@ Prepare Packer Templates
 
 其中在 #1 这一步, 我们有三个关键文件:
 
-- `.pkr.hcl <https://github.com/MacHu-GWU/acore_ami-project/blob/main/packer_workspaces/example/templates/.pkr.hcl>`_: packer template 的主脚本, 定义了 packer build 的逻辑.
-- `.variables.pkr.hcl <https://github.com/MacHu-GWU/acore_ami-project/blob/main/packer_workspaces/example/templates/.variables.pkr.hcl>`_: packer variables 的声明文件. 注意这里只是定义, 而不包含 value. (see `Input Variables and local variables <https://developer.hashicorp.com/packer/guides/hcl/variables>`_ for more information)
-- `.pkrvars.hcl <https://github.com/MacHu-GWU/acore_ami-project/blob/main/packer_workspaces/example/templates/.pkrvars.hcl>`_: packer variables 的值. packer build 的时候会从这里面读数据.
+- `.pkr.hcl <https://github.com/MacHu-GWU/packer_ami_workflow-project/blob/main/workflow/step1/templates/.pkr.hcl>`_: packer template 的主脚本, 定义了 packer build 的逻辑.
+- `.variables.pkr.hcl <https://github.com/MacHu-GWU/packer_ami_workflow-project/blob/main/workflow/step1/templates/.variables.pkr.hcl>`_: packer variables 的声明文件. 注意这里只是定义, 而不包含 value. (see `Input Variables and local variables <https://developer.hashicorp.com/packer/guides/hcl/variables>`_ for more information)
+- `.pkrvars.hcl <https://github.com/MacHu-GWU/packer_ami_workflow-project/blob/main/workflow/step1/templates/.pkrvars.hcl>`_: packer variables 的值. packer build 的时候会从这里面读数据.
 
 在编写 ``*.pkr.hcl`` 的时候, 所有在 packer template 中以 string replacement 存在的参数 (例如 ``ami_name      = var.output_ami_name``) 都需要在 ``*.variables.pkr.hcl`` 中定义. 这样能充分利用 packer 的 declaration 语法记录每个 variable 是用来干什么的. 请不要用 ``{{ param.output_ami_name }}`` 这样的语法直接替换掉里面的值, 这样做会降低代码的可维护性. 而如果是用来控制 template 结构的参数我们就不要放在 ``*.variables.pkr.hcl`` 中了. 我认为不应该用 jinja2 template 来完全替代 packer 的 variables 系统, 因为 jinja2 主要是一个 string template engine, 插入值的时候并不会检查类型, 所以我们只用 jinja2 来做 string manipulation, if/else, for loop.
 
-下面我们给出了在 `example <https://github.com/MacHu-GWU/acore_ami-project/tree/main/packer_workspaces/example>`_ Step 中的这三个关键文件的源代码:
+下面我们给出了在 `step1 <https://github.com/MacHu-GWU/packer_ami_workflow-project/blob/main/workflow/step1>`_ 中的这三个关键文件的源代码:
 
 .. important::
 
@@ -93,20 +103,31 @@ Prepare Packer Templates
 
 .. dropdown:: .pkr.hcl
 
-    .. literalinclude:: ../../../packer_workspaces/example/templates/.pkr.hcl
+    .. literalinclude:: ../../../workflow/step1/templates/.pkr.hcl
        :language: hcl
        :linenos:
 
 .. dropdown:: .pkrvars.hcl
 
-    .. literalinclude:: ../../../packer_workspaces/example/templates/.pkrvars.hcl
+    .. literalinclude:: ../../../workflow/step1/templates/.pkrvars.hcl
        :language: hcl
        :linenos:
 
 .. dropdown:: .variables.pkr.hcl
 
-    .. literalinclude:: ../../../packer_workspaces/example/templates/.variables.pkr.hcl
+    .. literalinclude:: ../../../workflow/step1/templates/.variables.pkr.hcl
        :language: hcl
+       :linenos:
+
+
+Step Level Parameter
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+和前面 ``workflow_param.json`` 类似, `step_param.json <https://github.com/MacHu-GWU/packer_ami_workflow-project/blob/main/workflow/step1/step_param.json>`_ 保存了跟这个 step 相关的一些参数. 其中最关键的就是这一步的 step id 和前一步的 step id. 如果当前 step 就是第一步, 那么 ``previous_step_id`` 就是 ``None``.
+
+.. dropdown:: step_param.json
+
+    .. literalinclude:: ../../../workflow/step1/step_param.json
+       :language: javascript
        :linenos:
 
 

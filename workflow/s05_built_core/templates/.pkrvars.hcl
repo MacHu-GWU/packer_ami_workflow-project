@@ -1,8 +1,0 @@
-source_ami_id = "{{ step_param.source_ami_id }}"
-output_ami_name = "{{ step_param.output_ami_name}}"
-aws_region = "{{ workflow_param.aws_region }}"
-vpc_name = "{{ workflow_param.vpc_name }}"
-is_default_vpc = "{{ workflow_param.is_default_vpc }}"
-subnet_name = "{{ workflow_param.subnet_name }}"
-security_group_name = "{{ workflow_param.security_group_name }}"
-ec2_iam_role_name = "{{ workflow_param.ec2_iam_role_name }}"
