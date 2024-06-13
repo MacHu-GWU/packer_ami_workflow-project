@@ -16,5 +16,4 @@ from .ec2 import extract_essential_attributes_from_image_list
 from .ec2 import find_root_base_ami
 from .ec2 import find_ami_by_name
 from .ec2 import tag_image
-from .ec2 import create_dynamodb_item_for_new_image
 from .builder import AmiBuilder

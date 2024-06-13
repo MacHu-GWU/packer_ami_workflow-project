@@ -1,21 +1,25 @@
 # -*- coding: utf-8 -*-
 
+"""
+boto3 EC2 API utilities.
+"""
+
 import typing as T
-import dataclasses
 
-from dateutil.parser import parse
 import simple_aws_ec2.api as simple_aws_ec2
-import aws_console_url.api as aws_console_url
-from rich import print as rprint
-
-from .dynamodb import AmiData
 
 if T.TYPE_CHECKING:  # pragma: no cover
     # do: pip install "boto3_stubs[ec2]"
     from mypy_boto3_ec2.client import EC2Client
 
 
-def extract_essential_attributes_from_image_list(images: T.List[simple_aws_ec2.Image]):
+def extract_essential_attributes_from_image_list(
+    images: T.List[simple_aws_ec2.Image],
+) -> T.List[T.Dict[str, T.Any]]:
+    """
+    The original ``simple_aws_ec2.Image`` object has too many attributes,
+    this function can extract important attributes only for print.
+    """
     records = [
         dict(
             id=image.id,
@@ -35,8 +39,11 @@ def find_root_base_ami(
     source_ami_owner_account_id: str,
 ) -> T.List[simple_aws_ec2.Image]:
     """
-    Find the root base ami that is used to build the acore ami. Usually,
-    the root base ami is the latest official ubuntu image.
+    This is the alternative of
+    `source_ami_filter <https://developer.hashicorp.com/packer/integrations/hashicorp/amazon/latest/components/builder/ebs>`_
+    feature in packer.
+
+    It finds the root base ami by name and owner account id.
     """
     iter_proxy = simple_aws_ec2.Image.query(
         ec2_client=ec2_client,
@@ -64,6 +71,10 @@ def find_ami_by_name(
     ami_name: str,
 ) -> simple_aws_ec2.Image:
     """
+    Find AMI object by its name. Since the ID is a generated value that we
+    don't know, we usually locate AMI by name. In AMI project, we usually
+    own these AMIs.
+
     :param ec2_client:
     :param ami_name: this is the Name parameter you pass to the
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2/client/create_image.html
@@ -112,41 +123,3 @@ def tag_image(
     # create tags will overwrite the existing tags
     ec2_client.create_tags(**create_tags_kwargs)
     return image_id
-
-
-def create_dynamodb_item_for_new_image(
-    ec2_client: "EC2Client",
-    aws_region: str,
-    workflow_id: str,
-    step_id: str,
-    new_ami_name: str,
-    base_ami_id: str,
-    base_ami_name: str,
-    root_base_ami_id: str,
-    root_base_ami_name: str,
-    metadata: dict,
-):
-    new_image = find_ami_by_name(
-        ec2_client=ec2_client,
-        ami_name=new_ami_name,
-    )
-
-    aws_console = aws_console_url.AWSConsole(aws_region=aws_region)
-    url = aws_console.ec2.get_ami(image_id_or_arn=new_image.id)
-
-    ami_data = AmiData(
-        workflow_id=workflow_id,
-        step_id=step_id,
-        ami_id=new_image.id,
-        ami_name=new_ami_name,
-        create_at=parse(new_image.creation_date),
-        aws_console_url=url,
-        base_ami_id=base_ami_id,
-        base_ami_name=base_ami_name,
-        root_base_ami_id=root_base_ami_id,
-        root_base_ami_name=root_base_ami_name,
-        details=dataclasses.asdict(new_image),
-        metadata=metadata,
-    )
-    ami_data.save()
-    return ami_data

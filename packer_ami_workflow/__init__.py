@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
 
 """
-Package Description.
+A workflow for large scale Amazon Machine Image build project.
 """
 
 from ._version import __version__
 
-__short_description__ = "Package short description."
+__short_description__ = "A workflow for large scale Amazon Machine Image build project."
 __license__ = "MIT"
 __author__ = "Sanhe Hu"
 __author_email__ = "husanhe@gmail.com"
