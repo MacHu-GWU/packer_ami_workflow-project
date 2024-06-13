@@ -50,6 +50,9 @@
 
 Welcome to ``packer_ami_workflow`` Documentation
 ==============================================================================
+.. image:: https://packer-ami-workflow.readthedocs.io/en/latest/_static/packer_ami_workflow-logo.png
+    :target: https://packer-ami-workflow.readthedocs.io/en/latest/
+
 我在生产实践中使用 packer 来构建 `Amazon Machine Image <https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/AMIs.html>`_ 总结了一套最佳实践, 用于维护 AMI 数量非常多, Provision 逻辑非常复杂的项目. 其核心思想是将一个复杂的 provision 过程分拆成多个 step, 然后这些 step 按照顺序组合成一个 workflow, 运维人员可以每隔一段时间就重新运行一次这个 workflow 以更新镜像.
 
 为了方便开发人员能快速上手这套最佳实践, 我设计了一套目录结构以及框架, 使得即时没有经验的开发者都可以用类似填表那样的傻瓜式操作管理复杂项目.

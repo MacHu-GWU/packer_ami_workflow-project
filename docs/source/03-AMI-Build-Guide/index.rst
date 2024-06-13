@@ -170,7 +170,7 @@ Packer Build Script
 
 .. dropdown:: packer_build.py
 
-    .. literalinclude:: ../../../packer_workspaces/example/packer_build.py
+    .. literalinclude:: ../../../workflow/step1/packer_build.py
        :language: python
        :linenos:
 

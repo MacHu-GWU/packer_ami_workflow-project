@@ -10,7 +10,7 @@
     "root_base_ami_id": "ami-0975ad60e5054592a",
     "root_base_ami_name": "ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-20240607",
     "aws_tags": {
-        "tech:project_name": "acore_ami",
+        "tech:project_name": "packer_ami_workflow",
         "tech:env_name": "devops",
         "tech:version": "v1",
         "tech:human_creator": "Sanhe Hu",
@@ -18,7 +18,7 @@
         "auto:delete_at": "na",
         "bus:ou": "app",
         "bus:team": "app",
-        "bus:project": "acore_ami",
+        "bus:project": "packer_ami_workflow",
         "bus:owner": "Sanhe Hu"
     }
 }
