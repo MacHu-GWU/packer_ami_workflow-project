@@ -13,8 +13,6 @@ def test():
     _ = api.PackerInstaller
     _ = api.Workspace
     _ = api.StepIdIndex
-    _ = api.Metadata
-    _ = api.StepIdIndex
     _ = api.AmiData
     _ = api.T_AMI_DATA
     _ = api.extract_essential_attributes_from_image_list
