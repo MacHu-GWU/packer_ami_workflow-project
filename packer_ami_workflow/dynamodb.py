@@ -1,34 +1,25 @@
 # -*- coding: utf-8 -*-
 
+"""
+DynamoDB ORM layer.
+"""
+
 import typing as T
 import dataclasses
 import pynamodb_mate.api as pm
 
 
 class StepIdIndex(pm.GlobalSecondaryIndex):
+    """
+    Step Id lookup Global secondary index.
+    """
+
     class Meta:
         index_name = "step_id_index"
         projection = pm.AllProjection()
 
     step_id = pm.UnicodeAttribute(hash_key=True)
     create_at = pm.UTCDateTimeAttribute(range_key=True)
-
-
-@dataclasses.dataclass
-class Metadata:
-    """
-    User custom metadata.
-    """
-
-    azerothcore_wotlk_commit_id: str = dataclasses.field(default=None)
-
-    def to_dict(self) -> T.Dict[str, T.Any]:
-        data = dataclasses.asdict(self)
-        return {k: v for k, v in data.items() if v is not None}
-
-    @classmethod
-    def from_dict(cls, dct: T.Dict[str, T.Any]):
-        return cls(**dct)
 
 
 class AmiData(pm.Model):
@@ -69,10 +60,21 @@ class AmiData(pm.Model):
 
     @classmethod
     def get_image(cls, workflow_id: str, step_id: str):
+        """
+        Get the AMI data details.
+
+        :param workflow_id: the workflow id.
+        :param step_id: the step id.
+        """
         return cls.get_one_or_none(workflow_id, step_id)
 
     @classmethod
     def query_by_workflow(cls, workflow_id: str):
+        """
+        Get all AMI (steps) data for a specific workflow.
+
+        :param workflow_id: the workflow id.
+        """
         return list(
             sorted(
                 cls.query(hash_key=workflow_id),
@@ -83,6 +85,11 @@ class AmiData(pm.Model):
 
     @classmethod
     def query_by_step_id(cls, step_id: str):
+        """
+        Get all AMI versions (from different workflow) for a specific step.
+
+        :param step_id: the step id.
+        """
         return list(
             sorted(
                 cls.step_id_index.query(hash_key=step_id),

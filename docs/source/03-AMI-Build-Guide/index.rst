@@ -85,7 +85,7 @@ Prepare Packer Templates
 
 1. 用 jinja2 语言写 hcl 模板. 其中使用一个 ``params`` Python 对象作为所有的 parameter 的 container, 然后用 ``{{ params.parameter_name }}`` 这样的语法来插入参数. 所有的 jinja2 模板都放在 templates 目录下.
 2. 在 Python 脚本中生成 params 对象, 至于 params 的数据放在哪里由开发者自己决定. 一般是放在 JSON 里.
-3. 用 jinja2 语言 render 最终的 hcl 文件, 并将其放在对应的目录下.
+3. 用 jinja2 语言 render 最终的 hcl 文件, 并将其放在 Step 的目录下.
 
 其中在 #1 这一步, 我们有三个关键文件:
 
@@ -131,23 +131,38 @@ Step Level Parameter
        :linenos:
 
 
+Manage AMIs
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+AWS 官方有很多 AMI API 可以进行 list, get details 等操作. 但是灵活性还是远远不如用数据库来管理 metadata. 所以在这个项目中我们会用 DynamoDB 来管理 AMI 的 metadata, 使得我们可以更方便地操作 AMI.
+
+:class:`~packer_ami_workflow.dynamodb.AmiData` 是一个 ORM 类, 它能让开发者用 Pythonic 的方式操作 DynamoDB, 并封装了常用的 query pattern, 例如:
+
+- :meth:`~packer_ami_workflow.dynamodb.AmiData.get_image`
+- :meth:`~packer_ami_workflow.dynamodb.AmiData.query_by_workflow`
+- :meth:`~packer_ami_workflow.dynamodb.AmiData.query_by_step_id`
+
+
 Packer Build Script
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-每个 Step 目录下都会有一个 ``packer_build.py`` 脚本用于执行 AMI 构建. 它的逻辑包含这么几个步骤:
+.. important::
 
-1. 读取 parameter, 包括 :class:`~acore_ami.workspace.WorkflowParam` 和 :class:`~acore_ami.workspace.StepParam` 两部分.
-2. 准备好跟 AWS boto session 相关的变量.
-3. 生成 ``packer build`` 命令的所需的 asset, 也就是用 jinja2 生成最终的 ``*.pkr.hcl`` 和 variables 文件.
-4. 运行 ``packer build`` 命令, 生成 AMI. 其中 #3, #4 的逻辑被打包在了 :meth:`acore_ami.workspace.Workspace.run_packer_build_workflow` 方法中.
-5. 对生成的 AMI 进行管理.给 AMI 打上 Tag, 并在 AMI inventory DynamoDB Table 中创建一条记录.
+    这一步就是我们真正作为一个 AMI 的维护着要动手写的部分了.
 
-``packer_build.py`` 这是一个 Python 脚本, 用来运行 packer build. **也是我们的核心脚本**. 这个脚本的主要流程是:
+这个 `packer_ami_workflow/tests/example.py <https://github.com/MacHu-GWU/packer_ami_workflow-project/blob/main/packer_ami_workflow/tests/example.py>`_ 是一个非常薄的 wrapper, 把 ``packer_ami_workflow`` 库的 utility 扩展, 并封装了一下. 它展示了你如何扩展默认的 :class:`~packer_ami_workflow.param.WorkflowParam` 和 :class:`~packer_ami_workflow.param.StepParam` 类, 如何指定 :class:`~packer_ami_workflow.dynamodb.AmiData` DynamoDB Table 的名字.
 
-1. 读取 :class:`~acore_ami.workspace.WorkflowParam`
-2. 读取 :class:`~acore_ami.workspace.StepParam`
-3. 执行 packer build, 包括用 jinja2 render 最终的 packer template, 运行 ``packer validate`` 以及最终运行 ``packer build``, 这些逻辑被 :meth:`acore_ami.workspace.Workspace.run_packer_build_workflow` 方法封装在一起了.
-4. 给 AMI 打上 aws tags, 便于管理.
-5. 在 DynamoDB 中创建一条记录, 用来记录这个 AMI 的 metadata, 也方便以后进行查询和管理.
+.. dropdown:: packer_ami_workflow/tests/example.py
+
+    .. literalinclude:: ../../../packer_ami_workflow/tests/example.py
+       :language: python
+       :linenos:
+
+有了这个 wrapper 之后, 开发者唯一要做的事情就只有三个:
+
+1. 编写 `/workflow/step1/template <https://github.com/MacHu-GWU/packer_ami_workflow-project/tree/main/workflow/step1/templates>`_ 中的 packer template 的逻辑. 具体语法和细节你可以参考 `packer 的官方文档 <https://developer.hashicorp.com/packer/tutorials/aws-get-started/aws-get-started-build-image>`_.
+2. 填写 `/workflow/workflow_param.json <https://github.com/MacHu-GWU/packer_ami_workflow-project/blob/main/workflow/workflow_param.json>`_ 和 `/workflow/step1/step_param.json <https://github.com/MacHu-GWU/packer_ami_workflow-project/blob/main/workflow/step1/step_param.json>`_ 配置文件.
+3. 运行 `/workflow/step1/packer_build.py <https://github.com/MacHu-GWU/packer_ami_workflow-project/blob/main/workflow/step1/packer_build.py>`_ 脚本.
+
+**下面我们来详细讲一讲** ``packer_build.py`` **脚本的结构**. 首先, 我们来看一下这个脚本的源码.
 
 .. important::
 
@@ -159,7 +174,43 @@ Packer Build Script
        :language: python
        :linenos:
 
+这个脚本的内容很简单:
 
-Manage AMIs
-------------------------------------------------------------------------------
-AWS 官方有很多 AMI API 可以进行 list, get details 等操作. 但是灵活性还是远远不如用数据库来管理 metadata. 所以在这个项目中我们会用 DynamoDB 来管理 AMI 的 metadata, 使得我们可以更方便地操作 AMI.
+1. 创建一个 AmiBuilder 对象, 这个对象在前面提到的 ``packer_ami_workflow/tests/example.py`` wrapper 中已经写好了.
+
+.. code-block:: python
+
+    builder = AmiBuilder.make_builder(dir_step=dir_here)
+
+2. 用 packer build 命令创建 AMI.
+
+.. code-block:: python
+
+    # dry_run is True = NOTHING happen, False = run packer build
+    builder.run_packer_build_workflow(dry_run=True)
+
+3. 给 AMI 打 AWS Tags.
+
+.. code-block:: python
+
+    builder.tag_ami()
+
+4. 在 DynamoDB 中创建一条记录.
+
+.. code-block:: python
+
+    builder.create_dynamodb_item()
+
+5. (Optional) 删除 AMI, 并可以选择是否同时删除 snapshot.
+
+.. code-block:: python
+
+    builder.delete_ami(delete_snapshot=False, skip_prompt=False)
+
+还有一种特殊情况是, 这个 packer template 中有一些步骤真的无法通过自动化完成, 那么你可以手动用前一步的 AMI 创建 EC2, 然后 SSH 进去, 手动 provision 环境, 退出然后 stop instance, 手动 create image, 然后 terminate instance. (我这里有个小工具可以方便的 SSH 到 EC2
+`ssh2awsec2 <https://github.com/MacHu-GWU/ssh2awsec2-project>`_). 下面是一个例子:
+
+.. code-block:: python
+
+    # 手动填写这个 ec2 instance id
+    builder.create_image_manually(instance_id="i-a1b2c3d4")

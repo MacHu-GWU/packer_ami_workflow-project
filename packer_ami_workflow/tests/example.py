@@ -1,9 +1,20 @@
 # -*- coding: utf-8 -*-
 
+import dataclasses
 from pathlib_mate import Path
 import pynamodb_mate.api as pm
 
 import packer_ami_workflow.api as paw
+
+
+@dataclasses.dataclass
+class WorkflowParam(paw.WorkflowParam):
+    pass
+
+
+@dataclasses.dataclass
+class StepParam(paw.StepParam):
+    pass
 
 
 class AmiData(paw.AmiData):
@@ -21,4 +32,6 @@ class AmiBuilder(paw.AmiBuilder):
         return cls.make(
             dir_step=dir_step,
             table_class=AmiData,
+            workflow_param_class=WorkflowParam,
+            step_param_class=StepParam,
         )

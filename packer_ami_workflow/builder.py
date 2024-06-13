@@ -113,6 +113,8 @@ class AmiBuilder:
         cls,
         dir_step: Path,
         table_class: T.Type[T_AMI_DATA],
+        workflow_param_class: T.Type[WorkflowParam] = WorkflowParam,
+        step_param_class: T.Type[StepParam] = StepParam,
     ):
         """
         Factory method.
@@ -122,8 +124,8 @@ class AmiBuilder:
         """
         path_workflow_param = dir_step.parent.joinpath("workflow_param.json")
         path_step_param = dir_step.joinpath("step_param.json")
-        workflow_param = WorkflowParam.from_json_file(path_workflow_param)
-        step_param = StepParam.from_json_file(path_step_param)
+        workflow_param = workflow_param_class.from_json_file(path_workflow_param)
+        step_param = step_param_class.from_json_file(path_step_param)
         workspace = Workspace(name=step_param.step_id, dir_root=dir_step)
 
         # Setup PynamoDB connection
@@ -287,16 +289,6 @@ class AmiBuilder:
 
         with logger.nested():
             self.packer_build(render=False, clean_up=False, dry_run=dry_run)
-
-    def wait_image(
-        self,
-        delays: T.Union[int, float],
-        timeout: T.Union[int, float],
-        verbose: bool = True,
-    ):
-        pass
-
-        "ami-0805c676705e379a0"
 
     @logger.start_and_end(
         msg="create image manually",
