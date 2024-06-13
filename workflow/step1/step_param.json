@@ -1,0 +1,7 @@
+{
+    "step_id": "step1",
+    "previous_step_id": null,
+    "metadata": {
+        "what_is_included": "step 1 stuff"
+    }
+}

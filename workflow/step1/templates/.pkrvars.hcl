@@ -1,0 +1,8 @@
+source_ami_id = "{{ builder.source_ami_id }}"
+output_ami_name = "{{ builder.output_ami_name }}"
+aws_region = "{{ builder.workflow_param.aws_region }}"
+vpc_name = "{{ builder.workflow_param.vpc_name }}"
+is_default_vpc = "{{ builder.workflow_param.is_default_vpc }}"
+subnet_name = "{{ builder.workflow_param.subnet_name }}"
+security_group_name = "{{ builder.workflow_param.security_group_name }}"
+ec2_iam_role_name = "{{ builder.workflow_param.ec2_iam_role_name }}"
