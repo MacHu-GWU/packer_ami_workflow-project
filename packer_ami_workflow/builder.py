@@ -13,6 +13,7 @@ from functools import cached_property
 import jinja2
 import pynamodb_mate.api as pm
 import aws_console_url.api as aws_console_url
+import simple_aws_ec2.api as simple_aws_ec2
 from pathlib_mate import Path
 from dateutil.parser import parse
 
@@ -138,7 +139,6 @@ class AmiBuilder:
             workspace=workspace,
             table_class=table_class,
         )
-        print(builder.source_ami_id)
         return builder
 
     @logger.start_and_end(
@@ -288,6 +288,69 @@ class AmiBuilder:
         with logger.nested():
             self.packer_build(render=False, clean_up=False, dry_run=dry_run)
 
+    def wait_image(
+        self,
+        delays: T.Union[int, float],
+        timeout: T.Union[int, float],
+        verbose: bool = True,
+    ):
+        pass
+
+        "ami-0805c676705e379a0"
+
+    @logger.start_and_end(
+        msg="create image manually",
+    )
+    def create_image_manually(
+        self,
+        instance_id: str,
+        wait: bool = True,
+        delays: T.Union[int, float] = 10,
+        timeout: T.Union[int, float] = 300,
+    ):
+        # Ensure the ec2 instance is fully stopped before creating image
+        response = self.workflow_param.bsm.ec2_client.describe_instances(
+            InstanceIds=[instance_id]
+        )
+        instance_status = response["Reservations"][0]["Instances"][0]["State"]["Name"]
+        if instance_status != "stopped":
+            raise ValueError(
+                "You can only create image when instance is fully stopped!"
+            )
+
+        tags = {
+            "Name": self.output_ami_name,
+        }
+        tags.update(self.workflow_param.aws_tags)
+
+        res = self.workflow_param.bsm.ec2_client.create_image(
+            InstanceId=instance_id,
+            Name=self.output_ami_name,
+            TagSpecifications=[
+                {
+                    "ResourceType": "image",
+                    "Tags": [{"Key": k, "Value": v} for k, v in tags.items()],
+                }
+            ],
+        )
+        image_id = res["ImageId"]
+
+        url = self.workflow_param.aws_console.ec2.get_ami(image_id)
+        logger.info(f"preview Image: {url}")
+
+        if wait:
+            logger.info("wait Image to reach available state")
+            image = simple_aws_ec2.Image.from_id(
+                ec2_client=self.workflow_param.bsm.ec2_client,
+                image_id=image_id,
+            )
+            image.wait_for_available(
+                ec2_client=self.workflow_param.bsm.ec2_client,
+                delays=delays,
+                timeout=timeout,
+                verbose=True,
+            )
+
     @logger.start_and_end(
         msg="tag ami",
     )
@@ -345,7 +408,11 @@ class AmiBuilder:
     @logger.start_and_end(
         msg="delete AMI",
     )
-    def delete_ami(self, delete_snapshot: bool = False) -> T_AMI_DATA:
+    def delete_ami(
+        self,
+        delete_snapshot: bool = False,
+        skip_prompt: bool = False,
+    ):
         new_image = find_ami_by_name(
             ec2_client=self.workflow_param.bsm.ec2_client,
             ami_name=self.output_ami_name,
@@ -353,16 +420,8 @@ class AmiBuilder:
         if new_image is None:
             raise ValueError(f"AMI {self.output_ami_name} not found.")
 
-        # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2/client/deregister_image.html
-        self.workflow_param.bsm.ec2_client.deregister_image(
-            ImageId=new_image.id,
+        new_image.deregister(
+            ec2_client=self.workflow_param.bsm.ec2_client,
+            delete_snapshot=delete_snapshot,
+            skip_prompt=skip_prompt,
         )
-
-        if delete_snapshot:
-            # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2/client/delete_snapshot.html
-            for dct in new_image.data.get("BlockDeviceMappings", []):
-                snapshot_id = dct.get("Ebs", {}).get("SnapshotId")
-                if snapshot_id:
-                    self.workflow_param.bsm.ec2_client.delete_snapshot(
-                        SnapshotId=snapshot_id,
-                    )

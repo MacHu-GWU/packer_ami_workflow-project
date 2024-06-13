@@ -10,6 +10,7 @@ from functools import cached_property
 
 from pathlib_mate import Path
 from boto_session_manager import BotoSesManager
+import aws_console_url.api as aws_console_url
 from .vendor.jsonutils import json_loads
 
 
@@ -77,6 +78,10 @@ class WorkflowParam(BaseParam):
     def aws_region(self) -> str:
         return self.bsm.aws_region
 
+    @cached_property
+    def aws_console(self) -> aws_console_url.AWSConsole:
+        return aws_console_url.AWSConsole.from_bsm(self.bsm)
+
 
 @dataclasses.dataclass
 class StepParam(BaseParam):
@@ -91,4 +96,3 @@ class StepParam(BaseParam):
     step_id: str = dataclasses.field()
     previous_step_id: T.Optional[str] = dataclasses.field()
     metadata: T.Dict[str, str] = dataclasses.field(default_factory=dict)
-
