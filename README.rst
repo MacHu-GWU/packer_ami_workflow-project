@@ -3,7 +3,7 @@
     :target: https://packer-ami-workflow.readthedocs.io/en/latest/
     :alt: Documentation Status
 
-.. image:: https://github.com/MacHu-GWU/packer_ami_workflow-project/workflows/CI/badge.svg
+.. image:: https://github.com/MacHu-GWU/packer_ami_workflow-project/actions/workflows/main.yml/badge.svg
     :target: https://github.com/MacHu-GWU/packer_ami_workflow-project/actions?query=workflow:CI
 
 .. image:: https://codecov.io/gh/MacHu-GWU/packer_ami_workflow-project/branch/main/graph/badge.svg
